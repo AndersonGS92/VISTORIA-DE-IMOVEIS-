@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vistoria Engenharia - Sistema de Vistoria Imobiliária</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- html2pdf.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .canvas-container { touch-action: none; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-200 pb-20">
+
+  <!-- TOP HEADER -->
+  <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div id="header-logo-preview" class="w-10 h-10 rounded bg-blue-600 text-white flex items-center justify-center font-bold text-xl shadow overflow-hidden">
+          <i class="fa-solid fa-clipboard-check" id="header-logo-icon"></i>
+        </div>
+        <div>
+          <h1 id="header-company-name" class="font-bold text-lg leading-tight text-gray-900 dark:text-white">SOUZA Engenharia</h1>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Sistema de Vistoria de Imóveis</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button onclick="toggleDarkMode()" class="p-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition" title="Alternar Modo Escuro/Claro">
+          <i class="fa-solid fa-moon dark:hidden"></i>
+          <i class="fa-solid fa-sun hidden dark:inline"></i>
+        </button>
+        <button onclick="exportDataJSON()" class="p-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition" title="Exportar Backup">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        <button onclick="triggerImportJSON()" class="p-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition" title="Importar Backup">
+          <i class="fa-solid fa-upload"></i>
+        </button>
+        <input type="file" id="import-json-file" class="hidden" accept=".json" onchange="importDataJSON(event)">
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-14 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-2 flex overflow-x-auto space-x-1 no-scrollbar">
+      <button onclick="switchTab('tab-dados')" id="btn-tab-dados" class="tab-btn active border-b-2 border-blue-600 text-blue-600 font-semibold px-4 py-3 text-sm whitespace-nowrap flex items-center gap-2">
+        <i class="fa-solid fa-building"></i> 1. Dados do Imóvel
+      </button>
+      <button onclick="switchTab('tab-checklist')" id="btn-tab-checklist" class="tab-btn text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium px-4 py-3 text-sm whitespace-nowrap flex items-center gap-2">
+        <i class="fa-solid fa-list-check"></i> 2. Checklist
+      </button>
+      <button onclick="switchTab('tab-assinaturas')" id="btn-tab-assinaturas" class="tab-btn text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium px-4 py-3 text-sm whitespace-nowrap flex items-center gap-2">
+        <i class="fa-solid fa-signature"></i> 3. Assinaturas
+      </button>
+      <button onclick="switchTab('tab-relatorio')" id="btn-tab-relatorio" class="tab-btn text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium px-4 py-3 text-sm whitespace-nowrap flex items-center gap-2">
+        <i class="fa-solid fa-file-pdf"></i> 4. Relatório PDF
+      </button>
+      <button onclick="switchTab('tab-config')" id="btn-tab-config" class="tab-btn text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium px-4 py-3 text-sm whitespace-nowrap flex items-center gap-2">
+        <i class="fa-solid fa-gear"></i> 5. Configurações
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- ABA 1: DADOS DO IMÓVEL & CLIENTE -->
+    <section id="tab-dados" class="tab-content block space-y-6">
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-gear text-blue-600"></i> Informações do Cliente e da Vistoria
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Cliente / Proprietário *</label>
+            <input type="text" id="prop-cliente" oninput="saveFormData()" placeholder="Ex: João da Silva" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CPF / CNPJ do Cliente</label>
+            <input type="text" id="prop-cpf" oninput="saveFormData()" placeholder="000.000.000-00" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone de Contato</label>
+            <input type="text" id="prop-telefone" oninput="saveFormData()" placeholder="(16) 99999-9999" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
+            <input type="email" id="prop-email" oninput="saveFormData()" placeholder="cliente@email.com" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-location-dot text-blue-600"></i> Localização do Imóvel
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Endereço Completo / RUA *</label>
+            <input type="text" id="prop-endereco" oninput="saveFormData()" placeholder="Av. Brasil, nº 1500" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bairro</label>
+            <input type="text" id="prop-bairro" oninput="saveFormData()" placeholder="Jardim das Flores" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cidade / UF</label>
+            <input type="text" id="prop-cidade" oninput="saveFormData()" placeholder="São Paulo / SP" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empreendimento / Condomínio</label>
+            <input type="text" id="prop-empreendimento" oninput="saveFormData()" placeholder="Residencial Bella Vista" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unidade / Bloco / Apto</label>
+            <input type="text" id="prop-unidade" oninput="saveFormData()" placeholder="Apto 42 - Bloco B" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-calendar-days text-blue-600"></i> Datas e Responsável Técnico
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data da Vistoria *</label>
+            <input type="date" id="prop-datavistoria" onchange="saveFormData()" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Engenheiro Responsável *</label>
+            <input type="text" id="prop-engenheiro" oninput="saveFormData()" placeholder="Eng. Anderson Gomes Souza" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CREA / CAU nº *</label>
+            <input type="text" id="prop-crea" oninput="saveFormData()" placeholder="CREA-SP 5060000000" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end">
+          <button onclick="switchTab('tab-checklist')" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow">
+            Avançar para Checklist <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 2: CHECKLIST DE VISTORIA -->
+    <section id="tab-checklist" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">Checklist do Imóvel</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Preencha o status e anexe evidências com marcações</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="addNewStageModal()" class="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition flex items-center gap-2 text-sm">
+            <i class="fa-solid fa-plus"></i> Nova Etapa / Ambiente
+          </button>
+          <button onclick="resetChecklistDefault()" class="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-300 transition">
+            <i class="fa-solid fa-rotate-left"></i> Padrão
+          </button>
+        </div>
+      </div>
+      <div id="checklist-stages-container" class="space-y-6"></div>
+    </section>
+
+    <!-- ABA 3: ASSINATURAS -->
+    <section id="tab-assinaturas" class="tab-content hidden space-y-6">
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">Assinaturas Digitais</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Assine utilizando a tela sensível ao toque do celular ou o cursor do mouse.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-bold text-gray-800 dark:text-gray-200">Engenheiro Responsável</h3>
+              <button onclick="clearSignature('canvas-eng')" class="text-xs text-red-500 hover:text-red-700 font-medium"><i class="fa-solid fa-eraser"></i> Limpar</button>
+            </div>
+            <div class="canvas-container bg-white rounded border border-gray-300 dark:border-gray-700 h-44 overflow-hidden relative">
+              <canvas id="canvas-eng" class="w-full h-full cursor-crosshair"></canvas>
+            </div>
+          </div>
+
+          <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-bold text-gray-800 dark:text-gray-200">Cliente / Proprietário</h3>
+              <button onclick="clearSignature('canvas-cli')" class="text-xs text-red-500 hover:text-red-700 font-medium"><i class="fa-solid fa-eraser"></i> Limpar</button>
+            </div>
+            <div class="canvas-container bg-white rounded border border-gray-300 dark:border-gray-700 h-44 overflow-hidden relative">
+              <canvas id="canvas-cli" class="w-full h-full cursor-crosshair"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 4: PRÉ-VISUALIZAÇÃO DO RELATÓRIO E GERADOR DE PDF -->
+    <section id="tab-relatorio" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">Pré-visualização do Relatório & Dashboard</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Verifique os indicadores gráficos e dados antes de baixar o PDF.</p>
+        </div>
+        <button onclick="generatePDF()" class="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg transition flex items-center gap-2 text-base">
+          <i class="fa-solid fa-file-pdf text-xl"></i> Gerar & Baixar PDF
+        </button>
+      </div>
+
+      <div class="overflow-x-auto p-2">
+        <div id="pdf-container" class="bg-white text-gray-900 p-8 shadow-2xl mx-auto rounded border border-gray-300 max-w-4xl" style="font-family: Arial, sans-serif; min-height: 1100px;">
+          <div id="pdf-header" class="flex justify-between items-center pb-4 border-b-2 mb-6">
+            <div class="flex items-center gap-4">
+              <div id="pdf-logo-box" class="w-20 h-20 border rounded flex items-center justify-center overflow-hidden bg-gray-50">
+                <i class="fa-solid fa-building text-3xl text-gray-400"></i>
+              </div>
+              <div>
+                <h1 id="pdf-company-title" class="text-2xl font-bold text-blue-900 leading-tight">SOUZA ENGENHARIA</h1>
+                <p id="pdf-company-sub" class="text-xs text-gray-600">Engenharia Civil e Vistorias Imobiliárias</p>
+                <p id="pdf-company-cnpj" class="text-xs text-gray-500">CNPJ: 00.000.000/0001-00</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded font-bold text-xs uppercase mb-1">Laudo de Vistoria</span>
+              <p id="pdf-doc-date" class="text-xs text-gray-500">Data: 00/00/0000</p>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+            <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-2">1. Dados da Inspeção</h3>
+            <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+              <div><strong>Cliente:</strong> <span id="pdf-val-cliente">-</span></div>
+              <div><strong>CPF/CNPJ:</strong> <span id="pdf-val-cpf">-</span></div>
+              <div><strong>Endereço:</strong> <span id="pdf-val-endereco">-</span></div>
+              <div><strong>Bairro/Cidade:</strong> <span id="pdf-val-cidade">-</span></div>
+              <div><strong>Empreendimento:</strong> <span id="pdf-val-empreendimento">-</span></div>
+              <div><strong>Unidade:</strong> <span id="pdf-val-unidade">-</span></div>
+              <div><strong>Engenheiro:</strong> <span id="pdf-val-engenheiro">-</span></div>
+              <div><strong>Registro CREA:</strong> <span id="pdf-val-crea">-</span></div>
+            </div>
+          </div>
+
+          <!-- DASHBOARD VISUAL DO RELATÓRIO -->
+          <div class="mb-6">
+            <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-3">2. Resumo Executivo & Indicadores</h3>
+            <div class="grid grid-cols-4 gap-3 mb-4">
+              <div class="bg-gray-50 border border-gray-200 p-3 rounded text-center">
+                <span class="block text-2xl font-bold text-gray-800" id="dash-kpi-total">0</span>
+                <span class="text-[10px] text-gray-500 font-semibold uppercase">Total de Itens</span>
+              </div>
+              <div class="bg-emerald-50 border border-emerald-200 p-3 rounded text-center">
+                <span class="block text-2xl font-bold text-emerald-700" id="dash-kpi-conforme">0%</span>
+                <span class="text-[10px] text-emerald-600 font-semibold uppercase">Conformidade</span>
+              </div>
+              <div class="bg-red-50 border border-red-200 p-3 rounded text-center">
+                <span class="block text-2xl font-bold text-red-700" id="dash-kpi-naoconforme">0</span>
+                <span class="text-[10px] text-red-600 font-semibold uppercase">Não Conformes</span>
+              </div>
+              <div class="bg-amber-50 border border-amber-200 p-3 rounded text-center">
+                <span class="block text-2xl font-bold text-amber-700" id="dash-kpi-na">0</span>
+                <span class="text-[10px] text-amber-600 font-semibold uppercase">Não Vistoriados</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 border border-gray-200 rounded-lg">
+              <div class="flex flex-col items-center">
+                <h4 class="text-xs font-bold text-gray-700 mb-2">Visão Geral dos Status</h4>
+                <canvas id="pdf-chart-donut" width="220" height="180"></canvas>
+              </div>
+              <div class="flex flex-col items-center">
+                <h4 class="text-xs font-bold text-gray-700 mb-2">Conformidade por Ambiente</h4>
+                <canvas id="pdf-chart-bar" width="260" height="180"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-6">
+            <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-3">3. Checklist de Inspeção Técnica</h3>
+            <div id="pdf-checklist-tables" class="space-y-4"></div>
+          </div>
+
+          <div class="mb-6">
+            <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-3">4. Evidências Fotográficas e Apontamentos</h3>
+            <div id="pdf-photos-grid" class="grid grid-cols-2 gap-4"></div>
+          </div>
+
+          <div class="pt-8 border-t border-gray-200 mt-12">
+            <h3 class="text-xs font-bold uppercase text-gray-500 tracking-wider mb-6 text-center">Encerramento e Assinaturas</h3>
+            <div class="grid grid-cols-2 gap-8 text-center">
+              <div>
+                <div class="h-20 border-b border-gray-400 flex items-end justify-center pb-1">
+                  <img id="pdf-img-sig-eng" class="max-h-full max-w-full object-contain hidden" />
+                </div>
+                <p id="pdf-name-eng" class="text-xs font-bold text-gray-800 mt-2">Engenheiro Técnico</p>
+                <p id="pdf-crea-eng" class="text-[10px] text-gray-500">CREA-SP</p>
+              </div>
+              <div>
+                <div class="h-20 border-b border-gray-400 flex items-end justify-center pb-1">
+                  <img id="pdf-img-sig-cli" class="max-h-full max-w-full object-contain hidden" />
+                </div>
+                <p id="pdf-name-cli" class="text-xs font-bold text-gray-800 mt-2">Cliente / Proprietário</p>
+                <p class="text-[10px] text-gray-500">Contratante</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 5: CONFIGURAÇÕES -->
+    <section id="tab-config" class="tab-content hidden space-y-6">
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-building-gear text-blue-600"></i> Dados da Sua Empresa
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome / Razão Social da Empresa</label>
+            <input type="text" id="cfg-company-name" oninput="saveConfig()" placeholder="SOUZA ENGENHARIA" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CNPJ</label>
+            <input type="text" id="cfg-company-cnpj" oninput="saveConfig()" placeholder="00.000.000/0001-00" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subtítulo / Especialidades</label>
+            <input type="text" id="cfg-company-sub" oninput="saveConfig()" placeholder="Engenharia Civil & Perícias" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Logotipo da Empresa</label>
+            <input type="file" id="cfg-logo-file" accept="image/*" onchange="handleLogoUpload(event)" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-palette text-blue-600"></i> Personalização do Relatório PDF
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cor Principal do Cabeçalho e Destaques</label>
+            <div class="flex items-center gap-3">
+              <input type="color" id="cfg-color-primary" onchange="saveConfig()" value="#0369a1" class="h-10 w-20 rounded border border-gray-300 cursor-pointer">
+              <span class="text-sm font-mono text-gray-600 dark:text-gray-400" id="cfg-color-primary-val">#0369a1</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL DE ANOTAÇÃO E MARCAÇÃO EM FOTOS -->
+  <div id="photo-modal" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
+        <h3 class="font-bold text-gray-900 dark:text-white">Editor de Evidência Fotográfica</h3>
+        <button onclick="closePhotoModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+      </div>
+      <div class="p-4 overflow-y-auto flex-1 flex flex-col items-center">
+        <div class="flex flex-wrap gap-2 mb-3 bg-gray-100 dark:bg-gray-700 p-2 rounded-lg w-full justify-center">
+          <button onclick="setDrawTool('arrow')" id="tool-arrow" class="tool-btn px-3 py-1.5 rounded bg-blue-600 text-white text-xs font-semibold">Seta</button>
+          <button onclick="setDrawTool('circle')" id="tool-circle" class="tool-btn px-3 py-1.5 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 text-xs font-semibold">Círculo</button>
+          <button onclick="setDrawTool('rect')" id="tool-rect" class="tool-btn px-3 py-1.5 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 text-xs font-semibold">Retângulo</button>
+          <button onclick="setDrawTool('text')" id="tool-text" class="tool-btn px-3 py-1.5 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 text-xs font-semibold">Texto</button>
+          <div class="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
+          <button onclick="setDrawColor('#ef4444')" class="w-6 h-6 rounded-full bg-red-500 ring-2 ring-offset-1 ring-red-500"></button>
+          <button onclick="setDrawColor('#eab308')" class="w-6 h-6 rounded-full bg-yellow-500"></button>
+          <button onclick="setDrawColor('#3b82f6')" class="w-6 h-6 rounded-full bg-blue-500"></button>
+          <button onclick="clearPhotoCanvasDrawings()" class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs ml-auto">Limpar</button>
+        </div>
+
+        <div class="relative canvas-container border border-gray-300 rounded overflow-hidden max-w-full">
+          <canvas id="photo-canvas" class="max-w-full h-auto cursor-crosshair"></canvas>
+        </div>
+
+        <div class="w-full mt-4">
+          <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Comentário / Legenda da Foto</label>
+          <input type="text" id="photo-caption-input" placeholder="Ex: Presença de fissura mapeada na alvenaria" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm">
+        </div>
+      </div>
+      <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-900">
+        <button onclick="closePhotoModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">Cancelar</button>
+        <button onclick="savePhotoModal()" class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">Salvar Foto</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let appData = {
+      config: {
+        companyName: "SOUZA ENGENHARIA",
+        cnpj: "00.000.000/0001-00",
+        subTitle: "Engenharia Civil e Vistorias Imobiliárias",
+        primaryColor: "#0369a1",
+        logoBase64: ""
+      },
+      imovel: {
+        cliente: "", cpf: "", telefone: "", email: "",
+        endereco: "", bairro: "", cidade: "", empreendimento: "", unidade: "",
+        dataVistoria: new Date().toISOString().split('T')[0],
+        engenheiro: "Eng. Anderson Gomes Souza",
+        crea: "CREA-SP 5060000000"
+      },
+      stages: [],
+      signatures: { eng: "", cli: "" }
+    };
+
+    const defaultStages = [
+      {
+        id: "stg-1", title: "1. Estrutura e Alvenaria",
+        items: [
+          { id: "it-1", title: "Paredes e Painéis (Trincas/Fissuras)", status: "C", obs: "", photos: [] },
+          { id: "it-2", title: "Prumo e Esquadro de Paredes", status: "C", obs: "", photos: [] },
+          { id: "it-3", title: "Forro de Gesso (Trincas e Nivelamento)", status: "C", obs: "", photos: [] }
+        ]
+      },
+      {
+        id: "stg-2", title: "2. Instalações Hidrossanitárias",
+        items: [
+          { id: "it-4", title: "Torneiras, Registros e Vazamentos", status: "C", obs: "", photos: [] },
+          { id: "it-5", title: "Caimento de Ralos e Escoamento", status: "C", obs: "", photos: [] },
+          { id: "it-6", title: "Louças e Metais (Riscos e Fixação)", status: "C", obs: "", photos: [] }
+        ]
+      },
+      {
+        id: "stg-3", title: "3. Instalações Elétricas",
+        items: [
+          { id: "it-7", title: "Quadro de Distribuição (QDG) e Tomadas", status: "C", obs: "", photos: [] },
+          { id: "it-8", title: "Funcionamento de Pontos de Iluminação", status: "C", obs: "", photos: [] }
+        ]
+      },
+      {
+        id: "stg-4", title: "4. Revestimentos, Pisos e Azulejos",
+        items: [
+          { id: "it-9", title: "Som Cavo (Peças Ocas)", status: "C", obs: "", photos: [] },
+          { id: "it-10", title: "Rejuntamento e Acabamento", status: "C", obs: "", photos: [] }
+        ]
+      }
+    ];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      initSignatures();
+      renderChecklist();
+      updateHeaderAndConfigInputs();
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    });
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active', 'border-b-2', 'border-blue-600', 'text-blue-600');
+        btn.classList.add('text-gray-500');
+      });
+      document.getElementById(tabId).classList.remove('hidden');
+      const activeBtn = document.getElementById('btn-' + tabId);
+      activeBtn.classList.add('active', 'border-b-2', 'border-blue-600', 'text-blue-600');
+      activeBtn.classList.remove('text-gray-500');
+      if (tabId === 'tab-relatorio') renderPDFPreview();
+    }
+
+    function saveData() {
+      localStorage.setItem('appVistoriaData_v2', JSON.stringify(appData));
+    }
+
+    function loadData() {
+      const saved = localStorage.getItem('appVistoriaData_v2');
+      if (saved) {
+        try { appData = JSON.parse(saved); } catch(e) { console.error(e); }
+      }
+      if (!appData.stages || appData.stages.length === 0) {
+        appData.stages = JSON.parse(JSON.stringify(defaultStages));
+      }
+      if (!appData.config) {
+        appData.config = { companyName: "SOUZA ENGENHARIA", cnpj: "00.000.000/0001-00", subTitle: "Engenharia Civil", primaryColor: "#0369a1", logoBase64: "" };
+      }
+
+      document.getElementById('prop-cliente').value = appData.imovel.cliente || "";
+      document.getElementById('prop-cpf').value = appData.imovel.cpf || "";
+      document.getElementById('prop-telefone').value = appData.imovel.telefone || "";
+      document.getElementById('prop-email').value = appData.imovel.email || "";
+      document.getElementById('prop-endereco').value = appData.imovel.endereco || "";
+      document.getElementById('prop-bairro').value = appData.imovel.bairro || "";
+      document.getElementById('prop-cidade').value = appData.imovel.cidade || "";
+      document.getElementById('prop-empreendimento').value = appData.imovel.empreendimento || "";
+      document.getElementById('prop-unidade').value = appData.imovel.unidade || "";
+      document.getElementById('prop-datavistoria').value = appData.imovel.dataVistoria || new Date().toISOString().split('T')[0];
+      document.getElementById('prop-engenheiro').value = appData.imovel.engenheiro || "Eng. Anderson Gomes Souza";
+      document.getElementById('prop-crea').value = appData.imovel.crea || "CREA-SP 5060000000";
+    }
+
+    function saveFormData() {
+      appData.imovel.cliente = document.getElementById('prop-cliente').value;
+      appData.imovel.cpf = document.getElementById('prop-cpf').value;
+      appData.imovel.telefone = document.getElementById('prop-telefone').value;
+      appData.imovel.email = document.getElementById('prop-email').value;
+      appData.imovel.endereco = document.getElementById('prop-endereco').value;
+      appData.imovel.bairro = document.getElementById('prop-bairro').value;
+      appData.imovel.cidade = document.getElementById('prop-cidade').value;
+      appData.imovel.empreendimento = document.getElementById('prop-empreendimento').value;
+      appData.imovel.unidade = document.getElementById('prop-unidade').value;
+      appData.imovel.dataVistoria = document.getElementById('prop-datavistoria').value;
+      appData.imovel.engenheiro = document.getElementById('prop-engenheiro').value;
+      appData.imovel.crea = document.getElementById('prop-crea').value;
+      saveData();
+    }
+
+    function renderChecklist() {
+      const container = document.getElementById('checklist-stages-container');
+      container.innerHTML = "";
+      appData.stages.forEach((stage, sIdx) => {
+        const stageEl = document.createElement('div');
+        stageEl.className = "bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm space-y-4";
+
+        let itemsHtml = "";
+        stage.items.forEach((item, iIdx) => {
+          itemsHtml += `
+            <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
+              <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                <input type="text" value="${item.title}" onchange="updateItemTitle(${sIdx}, ${iIdx}, this.value)" class="font-semibold text-gray-800 dark:text-gray-200 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 px-1 py-0.5 rounded text-sm w-full md:w-auto flex-1">
+                <div class="flex items-center gap-1">
+                  <button onclick="setItemStatus(${sIdx}, ${iIdx}, 'C')" class="px-3 py-1 rounded text-xs font-bold ${item.status === 'C' ? 'bg-emerald-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700'}">Conforme</button>
+                  <button onclick="setItemStatus(${sIdx}, ${iIdx}, 'NC')" class="px-3 py-1 rounded text-xs font-bold ${item.status === 'NC' ? 'bg-red-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700'}">Não Conf.</button>
+                  <button onclick="setItemStatus(${sIdx}, ${iIdx}, 'NA')" class="px-3 py-1 rounded text-xs font-bold ${item.status === 'NA' ? 'bg-amber-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700'}">N/A</button>
+                  <button onclick="deleteItem(${sIdx}, ${iIdx})" class="p-1 text-gray-400 hover:text-red-500 ml-2"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+              </div>
+              <div>
+                <input type="text" value="${item.obs || ''}" oninput="updateItemObs(${sIdx}, ${iIdx}, this.value)" placeholder="Observações..." class="w-full text-xs px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+              </div>
+              <div class="flex flex-wrap items-center gap-3 pt-1">
+                ${(item.photos || []).map((photo, pIdx) => `
+                  <div class="relative group w-16 h-16 rounded overflow-hidden border border-gray-300">
+                    <img src="${photo.src}" class="w-full h-full object-cover">
+                    <button onclick="deletePhoto(${sIdx}, ${iIdx}, ${pIdx})" class="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 flex items-center justify-center text-xs">&times;</button>
+                  </div>
+                `).join('')}
+                <button onclick="triggerPhotoUpload(${sIdx}, ${iIdx})" class="w-16 h-16 rounded border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:text-blue-500 transition">
+                  <i class="fa-solid fa-camera text-base"></i>
+                  <span class="text-[9px] font-semibold">Foto</span>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        stageEl.innerHTML = `
+          <div class="flex justify-between items-center border-b pb-2 dark:border-gray-700">
+            <input type="text" value="${stage.title}" onchange="updateStageTitle(${sIdx}, this.value)" class="font-bold text-lg text-gray-900 dark:text-white bg-transparent border-b border-transparent hover:border-gray-300 px-1 py-0.5 rounded">
+            <div class="flex items-center gap-2">
+              <button onclick="addItemToStage(${sIdx})" class="px-3 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 text-xs font-semibold rounded">+ Item</button>
+              <button onclick="deleteStage(${sIdx})" class="text-red-500 text-sm p-1"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </div>
+          <div class="space-y-3">${itemsHtml}</div>
+        `;
+        container.appendChild(stageEl);
+      });
+    }
+
+    function updateStageTitle(sIdx, val) { appData.stages[sIdx].title = val; saveData(); }
+    function updateItemTitle(sIdx, iIdx, val) { appData.stages[sIdx].items[iIdx].title = val; saveData(); }
+    function updateItemObs(sIdx, iIdx, val) { appData.stages[sIdx].items[iIdx].obs = val; saveData(); }
+    function setItemStatus(sIdx, iIdx, status) { appData.stages[sIdx].items[iIdx].status = status; saveData(); renderChecklist(); }
+    function deleteItem(sIdx, iIdx) { appData.stages[sIdx].items.splice(iIdx, 1); saveData(); renderChecklist(); }
+    function deleteStage(sIdx) { if(confirm("Deseja excluir esta etapa?")) { appData.stages.splice(sIdx, 1); saveData(); renderChecklist(); } }
+    function addItemToStage(sIdx) { appData.stages[sIdx].items.push({ id: "it-" + Date.now(), title: "Novo Item", status: "C", obs: "", photos: [] }); saveData(); renderChecklist(); }
+    function addNewStageModal() { const name = prompt("Nome da etapa/ambiente:"); if(name) { appData.stages.push({ id: "stg-" + Date.now(), title: name, items: [] }); saveData(); renderChecklist(); } }
+    function resetChecklistDefault() { if(confirm("Restaurar checklist padrão?")) { appData.stages = JSON.parse(JSON.stringify(defaultStages)); saveData(); renderChecklist(); } }
+
+    let currentPhotoTarget = { sIdx: null, iIdx: null };
+    let photoCanvas, photoCtx, photoImage, drawTool = 'arrow', drawColor = '#ef4444', drawings = [], isDrawing = false, startX = 0, startY = 0;
+
+    function triggerPhotoUpload(sIdx, iIdx) {
+      currentPhotoTarget = { sIdx, iIdx };
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (evt) => openPhotoModal(evt.target.result);
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+    }
+
+    function openPhotoModal(imgSrc) {
+      document.getElementById('photo-modal').classList.remove('hidden');
+      photoCanvas = document.getElementById('photo-canvas');
+      photoCtx = photoCanvas.getContext('2d');
+      drawings = [];
+      document.getElementById('photo-caption-input').value = "";
+      photoImage = new Image();
+      photoImage.onload = () => {
+        photoCanvas.width = 600; photoCanvas.height = 450;
+        redrawPhotoCanvas();
+      };
+      photoImage.src = imgSrc;
+    }
+
+    function setDrawTool(t) { drawTool = t; }
+    function setDrawColor(c) { drawColor = c; }
+    function clearPhotoCanvasDrawings() { drawings = []; redrawPhotoCanvas(); }
+    function redrawPhotoCanvas() {
+      photoCtx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
+      photoCtx.drawImage(photoImage, 0, 0, photoCanvas.width, photoCanvas.height);
+    }
+
+    function savePhotoModal() {
+      const finalSrc = photoCanvas.toDataURL('image/jpeg', 0.85);
+      const caption = document.getElementById('photo-caption-input').value;
+      const { sIdx, iIdx } = currentPhotoTarget;
+      if (!appData.stages[sIdx].items[iIdx].photos) appData.stages[sIdx].items[iIdx].photos = [];
+      appData.stages[sIdx].items[iIdx].photos.push({ src: finalSrc, caption: caption });
+      saveData();
+      renderChecklist();
+      closePhotoModal();
+    }
+
+    function closePhotoModal() { document.getElementById('photo-modal').classList.add('hidden'); }
+    function deletePhoto(sIdx, iIdx, pIdx) { appData.stages[sIdx].items[iIdx].photos.splice(pIdx, 1); saveData(); renderChecklist(); }
+
+    let canvasEng, canvasCli;
+    function initSignatures() {
+      canvasEng = document.getElementById('canvas-eng');
+      canvasCli = document.getElementById('canvas-cli');
+      setupSigCanvas(canvasEng, 'eng');
+      setupSigCanvas(canvasCli, 'cli');
+    }
+
+    function setupSigCanvas(canvas, type) {
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      let drawing = false;
+      const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      };
+      canvas.onmousedown = (e) => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); };
+      canvas.onmousemove = (e) => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+      canvas.onmouseup = () => { drawing = false; appData.signatures[type] = canvas.toDataURL(); saveData(); };
+    }
+
+    function clearSignature(id) {
+      const canvas = document.getElementById(id);
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+      appData.signatures[id === 'canvas-eng' ? 'eng' : 'cli'] = "";
+      saveData();
+    }
+
+    function renderPDFPreview() {
+      document.getElementById('pdf-val-cliente').innerText = appData.imovel.cliente || "-";
+      document.getElementById('pdf-val-cpf').innerText = appData.imovel.cpf || "-";
+      document.getElementById('pdf-val-endereco').innerText = appData.imovel.endereco || "-";
+      document.getElementById('pdf-val-cidade').innerText = (appData.imovel.bairro ? appData.imovel.bairro + " - " : "") + (appData.imovel.cidade || "-");
+      document.getElementById('pdf-val-empreendimento').innerText = appData.imovel.empreendimento || "-";
+      document.getElementById('pdf-val-unidade').innerText = appData.imovel.unidade || "-";
+      document.getElementById('pdf-val-engenheiro').innerText = appData.imovel.engenheiro || "-";
+      document.getElementById('pdf-val-crea').innerText = appData.imovel.crea || "-";
+      document.getElementById('pdf-doc-date').innerText = "Data: " + (appData.imovel.dataVistoria || "");
+
+      document.getElementById('pdf-company-title').innerText = appData.config.companyName || "SOUZA ENGENHARIA";
+      document.getElementById('pdf-company-sub').innerText = appData.config.subTitle || "";
+      document.getElementById('pdf-company-cnpj').innerText = "CNPJ: " + (appData.config.cnpj || "");
+      document.getElementById('pdf-company-title').style.color = appData.config.primaryColor;
+
+      const logoBox = document.getElementById('pdf-logo-box');
+      if (appData.config.logoBase64) {
+        logoBox.innerHTML = `<img src="${appData.config.logoBase64}" class="w-full h-full object-contain">`;
+      }
+
+      let total = 0, conf = 0, nconf = 0, na = 0;
+      const stats = [];
+      appData.stages.forEach(stg => {
+        let sc = 0, snc = 0, sna = 0;
+        stg.items.forEach(it => {
+          total++;
+          if (it.status === 'C') { conf++; sc++; }
+          else if (it.status === 'NC') { nconf++; snc++; }
+          else { na++; sna++; }
+        });
+        stats.push({ title: stg.title, c: sc, nc: snc, na: sna });
+      });
+
+      const perc = total > 0 ? Math.round((conf / total) * 100) : 0;
+      document.getElementById('dash-kpi-total').innerText = total;
+      document.getElementById('dash-kpi-conforme').innerText = perc + "%";
+      document.getElementById('dash-kpi-naoconforme').innerText = nconf;
+      document.getElementById('dash-kpi-na').innerText = na;
+
+      drawDonutChart(conf, nconf, na);
+      drawBarChart(stats);
+
+      const tablesContainer = document.getElementById('pdf-checklist-tables');
+      tablesContainer.innerHTML = "";
+      appData.stages.forEach(stg => {
+        let rows = "";
+        stg.items.forEach(it => {
+          let badge = it.status === 'C' ? '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px]">CONFORME</span>' :
+                      it.status === 'NC' ? '<span class="px-2 py-0.5 bg-red-100 text-red-800 rounded font-bold text-[10px]">NÃO CONF.</span>' :
+                      '<span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-bold text-[10px]">N/A</span>';
+          rows += `<tr class="border-b"><td class="py-1.5 px-2">${it.title}</td><td class="py-1.5 px-2 text-center">${badge}</td><td class="py-1.5 px-2 text-gray-600">${it.obs || '-'}</td></tr>`;
+        });
+        tablesContainer.innerHTML += `<div class="border rounded-lg overflow-hidden"><div class="bg-gray-100 px-3 py-1.5 font-bold text-xs border-b">${stg.title}</div><table class="w-full text-left text-xs"><thead><tr class="bg-gray-50 border-b text-[10px]"><th class="py-1 px-2">Item</th><th class="py-1 px-2 text-center w-24">Status</th><th class="py-1 px-2">Obs</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      });
+    }
+
+    function drawDonutChart(c, nc, na) {
+      const canvas = document.getElementById('pdf-chart-donut');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const total = c + nc + na;
+      if (total === 0) return;
+      const data = [{val: c, color: '#10b981', label: 'Conf'}, {val: nc, color: '#ef4444', label: 'Não Conf'}, {val: na, color: '#f59e0b', label: 'N/A'}];
+      let start = 0;
+      data.forEach(d => {
+        if (d.val === 0) return;
+        const angle = (d.val / total) * 2 * Math.PI;
+        ctx.beginPath(); ctx.arc(90, 90, 70, start, start + angle); ctx.arc(90, 90, 45, start + angle, start, true);
+        ctx.fillStyle = d.color; ctx.fill();
+        start += angle;
+      });
+    }
+
+    function drawBarChart(stats) {
+      const canvas = document.getElementById('pdf-chart-bar');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (stats.length === 0) return;
+      let startX = 30;
+      stats.slice(0, 4).forEach((stg, idx) => {
+        ctx.fillStyle = '#10b981'; ctx.fillRect(startX, 150 - (stg.c * 10), 10, stg.c * 10);
+        ctx.fillStyle = '#ef4444'; ctx.fillRect(startX + 12, 150 - (stg.nc * 10), 10, stg.nc * 10);
+        startX += 40;
+      });
+    }
+
+    function generatePDF() {
+      renderPDFPreview();
+      html2pdf().set({ margin: 10, filename: `Laudo_${appData.imovel.cliente || 'Imovel'}.pdf`, html2canvas: { scale: 2 } }).from(document.getElementById('pdf-container')).save();
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    }
+
+    function saveConfig() {
+      appData.config.companyName = document.getElementById('cfg-company-name').value;
+      appData.config.cnpj = document.getElementById('cfg-company-cnpj').value;
+      appData.config.subTitle = document.getElementById('cfg-company-sub').value;
+      appData.config.primaryColor = document.getElementById('cfg-color-primary').value;
+      document.getElementById('cfg-color-primary-val').innerText = appData.config.primaryColor;
+      saveData();
+      updateHeaderAndConfigInputs();
+    }
+
+    function updateHeaderAndConfigInputs() {
+      document.getElementById('header-company-name').innerText = appData.config.companyName || "SOUZA ENGENHARIA";
+      document.getElementById('cfg-company-name').value = appData.config.companyName || "";
+      document.getElementById('cfg-company-cnpj').value = appData.config.cnpj || "";
+      document.getElementById('cfg-company-sub').value = appData.config.subTitle || "";
+      document.getElementById('cfg-color-primary').value = appData.config.primaryColor || "#0369a1";
+    }
+
+    function handleLogoUpload(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          appData.config.logoBase64 = evt.target.result;
+          saveData();
+          renderPDFPreview();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function exportDataJSON() {
+      const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'backup_vistoria.json'; a.click();
+    }
+
+    function triggerImportJSON() { document.getElementById('import-json-file').click(); }
+    function importDataJSON(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          appData = JSON.parse(evt.target.result);
+          saveData();
+          loadData();
+          renderChecklist();
+          updateHeaderAndConfigInputs();
+          alert("Backup importado com sucesso!");
+        };
+        reader.readAsText(file);
+      }
+    }
+  </script>
+</body>
+</html>
